@@ -1,5 +1,11 @@
 {
   "name": "@pureta/db-typeorm",
+  "description": "Pureta plugin providing TypeORM support",
+  "version": "0.0.1",
+  "license": "MIT",
+  "homepage": "https://github.com/pureta/db-typeorm",
+  "repository": "https://github.com/pureta/db-typeorm",
+  "bugs": "https://github.com/pureta/db-typeorm/issues",
   "main": "./index.js",
   "pureta": {
     "main": "./index.js",
