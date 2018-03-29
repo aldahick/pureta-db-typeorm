@@ -2,10 +2,16 @@ import * as _ from "lodash";
 import * as path from "path";
 import * as pureta from "pureta";
 import * as orm from "typeorm";
+import NamingStrategy from "./lib/NamingStrategy";
 
 export default class TypeORMPlugin extends pureta.Plugin {
     dirs = {};
-    private connections: orm.Connection[] = [];
+    private static connections: orm.Connection[] = [];
+
+    public static db(identifier: string | pureta.RequestHandler): orm.Connection {
+        if (identifier instanceof pureta.RequestHandler) identifier = identifier.config.get("http.host");
+        return orm.getConnection(<string>identifier);
+    }
 
     async registerHandlers() {
         this.app.on("app:start", this.onAppStart.bind(this));
@@ -18,7 +24,7 @@ export default class TypeORMPlugin extends pureta.Plugin {
                 .map(d => path.resolve(p.baseDir, d))
             ).reduce((p, v) => p.concat(v), [])
             .map(d => d + (d.endsWith("/") ? "" : "/") + "*.js");
-        this.connections = await Promise.all(Object.keys(this.app.configs).filter(k => k !== "global").map(host => {
+        TypeORMPlugin.connections = await Promise.all(Object.keys(this.app.configs).filter(k => k !== "global").map(host => {
             const config = this.app.configs[host];
             const options = _.defaults<orm.ConnectionOptions, Partial<orm.ConnectionOptions>>(<any>config.buildToObject("db."), {
                 entities: modelDirs,
@@ -31,28 +37,6 @@ export default class TypeORMPlugin extends pureta.Plugin {
     }
 
     private async onAppStop() {
-        await Promise.all(this.connections.map(c => c.close()));
-    }
-}
-
-class NamingStrategy extends orm.DefaultNamingStrategy implements orm.NamingStrategyInterface {
-    public tableName(targetName: string, userName?: string): string {
-        return _.snakeCase(userName || targetName);
-    }
-    public columnName(propertyName: string, userName: string, prefixes: string[]): string {
-        return _.snakeCase(prefixes.concat([userName || propertyName]).join("_"));
-    }
-    public relationName(propertyName: string): string {
-        return _.snakeCase(propertyName);
-    }
-    public joinColumnName(relationName: string, referencedColumnName: string): string {
-        return _.snakeCase(relationName + "_" + referencedColumnName);
-    }
-    // @ts-ignore: secondTableName is unused
-    public joinTableName(firstTableName: string, secondTableName: string, firstPropertyName: string): string {
-        return _.snakeCase(firstTableName + "_" + firstPropertyName);
-    }
-    public joinTableColumnName(tableName: string, propertyName: string, columnName: string): string {
-        return _.snakeCase(tableName + "_" + (columnName || propertyName));
+        await Promise.all(TypeORMPlugin.connections.map(c => c.close()));
     }
 }
